@@ -1,0 +1,45 @@
+DRB Oct 2023: Low Inventory working model:
+
+****** Viewer: 
+
+Banner: In the above code, if notificationAlerts is > 0, there will be a banner at the top of the page. 
+But the banner itself hides its contents if you are in the low inventory plan itself, as there is no point wasting space.
+
+Audio: This plays whenever the watch on computed alertInvItems sees lowInvPingCount increase, but only when the 
+low inventory count has increased from the previous moment (currentLowInvCount > previousLowInvCount).
+In other words, when it gets the ping and the LI count has increased. This tries to not be too obnoxious in playing the audio.
+
+From slack: 
+DRB: why there is no LI plan here since there are warnings about them on the rows:
+
+Felipe: Tasks can show a red triangle that they are LI. But NO low inventory plan needs to show if these are ALL within active plans (current time is between
+the start and end times).
+
+Corey: so if a product has low inventory...
+if there is an active task in an active plan, then it just shows in line (in the row)
+if there isn't an active task in an active plan, then it generates a LI plan
+     
+DEAN: What do you mean an active task?
+
+Corey: if there is already a task in a plan that is active for the given product
+
+****** Builder:
+
+There is no MTO plan in builder, according to Jordan.
+
+New logic Oct 31, 2023: 
+
+Viewer: No checks on editing the LI plan - code removed.
+Every 10 minutes, do a check.
+The check does 2 things: 
+
+1. Check for LI. If LI plan exists (which implies count > 0) and it's within the LI start-to-end time range: 
+    a. Mark LI banner as visible.
+    b. If NOT currently on the LI plan, play audio alert.
+2. Check for MTO. If count > 0:
+    a. Mark LI banner as visible.
+    b. If NOT currently on the LI plan, play audio alert.
+
+
+
+

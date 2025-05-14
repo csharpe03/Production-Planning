@@ -1,0 +1,86 @@
+version: '3.4'
+
+services:
+
+  # These services support local development through 2 commands: "docker-compose up app" and "docker-compose up test"
+  # - running "docker-compose up app" will:
+  #   start the "app-client" service which runs the webpack-dev-server that automatically generates webpack bundles with code changes
+  #   start the "app" service which runs your node application with nodemon so it automatically restarts with code changes
+  #   as per the depends_on rule, starting "app" automatically starts "app-client", and "app" will wait until "app-client" is fully initialized
+
+  #
+  # - running "docker-compose up test" will:
+  #   start the "app-test" service which runs the node application under port 9002
+  #   start the "selenium-chrome" service which can be used as a headless chrome browser in selenium tests
+  #   start the "test" service which runs the E2E Nightwatch tests against "app-test" using "selenium-chrome" as the browser
+
+  app:
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile
+      target: dev
+    command: "./bin/wait-for-it.sh app-client:9000 -t 90 -- npm run start:server"
+    environment:
+      - NODE_ENV=dev
+      - PORT=9001
+    ports:
+      - "9001:9001" # nodejs
+      - "5858:5858" # nodejs debug
+    volumes:
+      - ./:/home/node/app  # map in the live code
+      - /home/node/.npm  # used to cache npm install downloads
+      - /home/node/app/node_modules  # use a volume for node_modules, otherwise the volume to map the live code will copy them from the host file system (which causes cross-platform issues)
+    depends_on:
+      - app-client
+
+  app-client:
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile
+      target: dev
+    command: bash -c "npm run start:client"
+    environment:
+      - NODE_ENV=dev
+    ports:
+      - "9000:9000" # webpack-dev-server port
+    volumes:
+      - ./:/home/node/app  # map in the live code
+      - /home/node/.npm  # used to cache npm install downloads
+      - /home/node/app/node_modules  # use a volume for node_modules, otherwise the volume to map the live code will copy them from the host file system (which causes cross-platform issues)
+
+  app-test:
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile
+      target: prod
+    command: bash -c "npm start"
+    environment:
+      - NODE_ENV=test
+      - PORT=9001
+    ports:
+      - "9002:9001" # nodejs
+    volumes:
+      - /home/node/.npm  # used to cache npm install downloads
+
+  test:
+    build:
+      context: .
+      dockerfile: ./build/Dockerfile
+      target: dev
+    command: "./bin/wait-for-it.sh selenium-chrome:4444 -- ./bin/wait-for-it.sh app-test:9001 -t 90 -- npm run e2eTest-noWP"
+    environment:
+      - LAUNCH_URL=http://app-test:9001
+      - SELENIUM_HOST=selenium-chrome
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./:/home/node/app  # map in the live code
+      - /home/node/.npm  # used to cache npm install downloads
+      - /home/node/app/node_modules  # use a volume for node_modules, otherwise the volume to map the live code will copy them from the host file system (which causes cross-platform issues)
+    depends_on:
+      - app-test
+      - selenium-chrome
+
+  selenium-chrome:
+    image: selenium/standalone-chrome:3.141.5
+    expose:
+      - 4444 # Use expose so its available to the testing container without exposing it to the host. (Otherwise, if the container stays up it can prevent you from running locally selenium based tests that start their own selenium standalone server)

@@ -1,0 +1,40 @@
+version: '3.4'
+services:
+
+  app:
+    # Replace "image" with "build" if you want to test locally
+    # build:
+    #   context: .
+    #   dockerfile: ./build/Dockerfile
+    #   args:
+    #     GIT_COMMIT: ${GIT_COMMIT}
+    image: ${IMAGE_NAME}
+    environment:
+      - NODE_ENV=test
+      - PORT=9001
+    # If you want to access this container from your local machine, comment the "expose" section and uncomment "ports" below
+    expose:
+      - 9001 # Use expose so its available to the testing container  without exposing it to the host. (Otherwise if it stays up, it can clash with other running containers on your host or even the new CHIPS Jenkins host for that matter)
+    # ports:
+    #  - "9001:9001"
+
+  test:
+    # Replace "image" with "build" if you want to test locally
+    # build:
+    #   context: .
+    #   dockerfile: ./build/Dockerfile
+    #   target: dev
+    image: ${DEV_IMAGE_NAME}
+    command: ["./bin/wait-for-it.sh", "selenium-chrome:4444", "--", "npm", "run", "e2eTest-noWP"]
+    environment:
+      - LAUNCH_URL=http://app:9001
+      - SELENIUM_HOST=selenium-chrome
+      - SELENIUM_PORT=4444
+    depends_on:
+      - app
+      - selenium-chrome
+
+  selenium-chrome:
+    image: selenium/standalone-chrome:3.141.5
+    expose:
+      - 4444 # Use expose so its available to the testing container without exposing it to the host. (Otherwise, if the container stays up it can prevent you from running locally selenium based tests that start their own selenium standalone server)
